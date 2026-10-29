@@ -19,18 +19,30 @@ def _raise_for_upstream_error(response: httpx.Response) -> None:
 
 
 class HttpExtractionClient:
-    def __init__(self, client: httpx.AsyncClient, base_url: str):
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+    ):
         self.client = client
         self.base_url = base_url.rstrip("/")
 
-    async def extract(self, data: bytes, filename: str) -> dict:
+    async def extract(
+        self,
+        data: bytes,
+        filename: str,
+    ) -> dict:
         response = await self.client.post(
             f"{self.base_url}/internal/v1/extract",
-            files={"file": (filename, data, "application/pdf")},
+            content=data,
+            headers={
+                "Content-Type": "application/pdf",
+                "X-Filename": filename,
+            },
         )
+
         _raise_for_upstream_error(response)
         return response.json()
-
 
 class HttpStorageClient:
     def __init__(self, client: httpx.AsyncClient, base_url: str):
