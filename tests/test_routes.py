@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -10,7 +10,7 @@ PDF_CONTENT = b"%PDF-1.4\nexample\n%%EOF"
 
 
 def document_fixture() -> dict:
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     return {
         "id": "507f1f77bcf86cd799439011",
         "filename": "report.pdf",
