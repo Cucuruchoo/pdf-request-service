@@ -3,7 +3,11 @@ from datetime import UTC, datetime
 import httpx
 import pytest
 
-from app.api.dependencies import get_request_service
+from app.api.dependencies import get_request_service, get_upload_limiter
+from app.infrastructure.upload_limiter import (
+    PdfUploadLimiter,
+    PdfUploadLimitError,
+)
 from app.main import app
 
 PDF_CONTENT = b"%PDF-1.4\nexample\n%%EOF"
@@ -97,3 +101,56 @@ async def test_document_update(client):
 async def test_document_delete(client):
     response = await client.delete("/api/v1/documents/abc")
     assert response.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_upload_returns_429_when_at_capacity(client):
+    limiter = PdfUploadLimiter(max_concurrent=1)
+
+    app.dependency_overrides[get_upload_limiter] = (
+        lambda: limiter
+    )
+
+    try:
+        async with limiter.slot():
+            response = await client.post(
+                "/api/v1/documents",
+                content=PDF_CONTENT,
+                headers={
+                    "content-type": "application/pdf",
+                    "x-filename": "report.pdf",
+                },
+            )
+
+        assert response.status_code == 429
+
+    finally:
+        app.dependency_overrides.pop(
+            get_upload_limiter,
+            None,
+        )
+
+
+@pytest.mark.asyncio
+async def test_limiter_releases_slot_after_error():
+    limiter = PdfUploadLimiter(max_concurrent=1)
+
+    with pytest.raises(RuntimeError):
+        async with limiter.slot():
+            raise RuntimeError("Test error")
+
+    # Debe permitir otra carga después del error.
+    async with limiter.slot():
+        assert limiter._active == 1
+
+
+@pytest.mark.asyncio
+async def test_limiter_rejects_excess_slots():
+    limiter = PdfUploadLimiter(max_concurrent=2)
+
+    async with limiter.slot(), limiter.slot():
+        with pytest.raises(PdfUploadLimitError):
+            async with limiter.slot():
+                pass
+
+    assert limiter._active == 0

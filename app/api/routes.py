@@ -11,9 +11,16 @@ from fastapi import (
     status,
 )
 
-from app.api.dependencies import get_request_service
+from app.api.dependencies import (
+    get_request_service,
+    get_upload_limiter,
+)
 from app.application.request_service import RequestService
 from app.domain.errors import PdfValidationError, UpstreamError
+from app.infrastructure.upload_limiter import (
+    PdfUploadLimiter,
+    PdfUploadLimitError,
+)
 from app.schemas.documents import DocumentResponse, DocumentUpdateRequest
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
@@ -33,34 +40,75 @@ Service = Annotated[RequestService, Depends(get_request_service)]
         }
     },
 )
+
 async def upload_document(
     request: Request,
     service: Service,
     filename: Annotated[str, Header(alias="X-Filename")],
+    limiter: Annotated[
+        PdfUploadLimiter,
+        Depends(get_upload_limiter),
+    ],
 ) -> dict:
-    content_type = request.headers.get("content-type", "").split(";", 1)[0].lower()
+    content_type = (
+        request.headers.get("content-type", "")
+        .split(";", 1)[0]
+        .lower()
+    )
+
     if content_type != "application/pdf":
         raise HTTPException(
-            status_code=415, detail="Content-Type must be application/pdf."
-        )
-
-    data = bytearray()
-    async for chunk in request.stream():
-        data.extend(chunk)
-        if len(data) > service.max_pdf_size_bytes:
-            raise HTTPException(
-            status_code=413, detail="PDF exceeds maximum allowed size."
+            status_code=415,
+            detail="Content-Type must be application/pdf.",
         )
 
     try:
-        return await service.upload(bytes(data), filename)
-    except PdfValidationError as error:
-        raise HTTPException(status_code=400, detail=str(error)) from error
-    except UpstreamError as error:
-        raise HTTPException(status_code=error.status_code, detail=str(error)) from error
-    except (httpx.RequestError, ValueError, KeyError) as error:
+        async with limiter.slot():
+            data = bytearray()
+
+            async for chunk in request.stream():
+                data.extend(chunk)
+
+                if len(data) > service.max_pdf_size_bytes:
+                    raise HTTPException(
+                        status_code=413,
+                        detail="PDF exceeds maximum allowed size.",
+                    )
+
+            return await service.upload(
+                bytes(data),
+                filename,
+            )
+
+    except PdfUploadLimitError as error:
         raise HTTPException(
-            status_code=502, detail="Upstream service unavailable or invalid response."
+            status_code=429,
+            detail=str(error),
+        ) from error
+
+    except PdfValidationError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    except UpstreamError as error:
+        raise HTTPException(
+            status_code=error.status_code,
+            detail=str(error),
+        ) from error
+
+    except (
+        httpx.RequestError,
+        ValueError,
+        KeyError,
+    ) as error:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Upstream service unavailable "
+                "or invalid response."
+            ),
         ) from error
 
 

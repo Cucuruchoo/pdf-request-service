@@ -10,6 +10,7 @@ from app.infrastructure.http_clients import (
 )
 from app.infrastructure.request_logging import request_id_context
 from app.infrastructure.settings import get_settings
+from app.infrastructure.upload_limiter import PdfUploadLimiter
 
 
 async def get_request_service() -> AsyncIterator[RequestService]:
@@ -34,3 +35,12 @@ async def get_request_service() -> AsyncIterator[RequestService]:
             ),
             max_pdf_size_bytes=settings.max_pdf_size_bytes,
         )
+# Una única instancia compartida por las solicitudes
+# de este proceso de Request Service.
+_upload_limiter = PdfUploadLimiter(
+    get_settings().max_concurrent_pdf_uploads
+)
+
+
+def get_upload_limiter() -> PdfUploadLimiter:
+    return _upload_limiter

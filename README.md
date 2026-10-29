@@ -74,3 +74,45 @@ uv run pytest -q
 - Detección de documentos duplicados.
 - Almacenamiento en MongoDB.
 - Operaciones CRUD sobre documentos.
+
+## Protección contra sobrecarga
+
+La API implementa dos niveles de protección:
+
+### 1. Protección mediante Traefik
+
+Traefik funciona como API Gateway e incorpora:
+
+- Rate limiting de 15 solicitudes por segundo.
+- Burst de 20 solicitudes.
+- Límite de 4 solicitudes POST simultáneas.
+- Respuesta HTTP 429 cuando se exceden los límites.
+
+### 2. Control interno de concurrencia
+
+Request Service incorpora un controlador basado
+en asyncio para limitar el procesamiento de PDFs.
+
+- Máximo configurable mediante
+  MAX_CONCURRENT_PDF_UPLOADS.
+- Valor predeterminado: 4 PDFs simultáneos.
+- El límite es compartido por las solicitudes
+  de una misma instancia del servicio.
+- Las solicitudes adicionales reciben HTTP 429.
+- Los espacios se liberan al finalizar o fallar.
+- Las operaciones GET, PATCH y DELETE
+  no utilizan este límite.
+
+### Pruebas automatizadas
+
+Se verifica:
+
+- El rechazo cuando se alcanza el límite.
+- La liberación de recursos después de errores.
+- El control de la cantidad máxima de operaciones.
+
+### Limitaciones
+
+El límite interno funciona por proceso de Request.
+En una arquitectura con múltiples instancias,
+cada una mantiene su propio contador.
