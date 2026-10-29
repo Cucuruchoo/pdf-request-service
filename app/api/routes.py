@@ -17,15 +17,14 @@ from app.api.dependencies import (
 )
 from app.application.request_service import RequestService
 from app.domain.errors import PdfValidationError, UpstreamError
-from app.schemas.documents import DocumentResponse, DocumentUpdateRequest
-
-router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
-Service = Annotated[RequestService, Depends(get_request_service)]
-
 from app.infrastructure.upload_limiter import (
     PdfUploadLimiter,
     PdfUploadLimitError,
 )
+from app.schemas.documents import DocumentResponse, DocumentUpdateRequest
+
+router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
+Service = Annotated[RequestService, Depends(get_request_service)]
 
 
 @router.post(
