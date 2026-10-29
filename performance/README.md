@@ -52,3 +52,57 @@ No representan la capacidad máxima del sistema.
 - Solicitudes concurrentes de PDFs.
 - Evaluación del consumo de CPU y memoria.
 - Comportamiento con diferentes tamaños de PDF.
+
+## Protección de la API con Traefik
+
+Se incorporó Traefik como API Gateway para centralizar
+el acceso HTTP y aplicar protecciones contra sobrecarga.
+
+### Configuración implementada
+
+- Rate limiting: 15 solicitudes por segundo.
+- Burst: 20 solicitudes.
+- InFlightReq: máximo de 4 POST simultáneos
+  para el mismo host.
+- Respuesta ante solicitudes limitadas: HTTP 429.
+
+### Prueba de Rate Limiting (GET)
+
+Herramienta: Grafana k6
+
+- Usuarios virtuales: 10.
+- Duración: 8 segundos.
+- Solicitudes realizadas: 2341.
+- Solicitudes HTTP 200: 130.
+- Solicitudes HTTP 429: 2211.
+- Verificaciones correctas: 100 %.
+
+Resultado: el gateway restringió el tráfico excesivo.
+
+### Prueba de concurrencia (POST)
+
+Herramienta: Grafana k6
+
+- Usuarios virtuales: 20.
+- Una solicitud POST por usuario.
+- PDFs válidos y diferentes.
+- Solicitudes totales: 20.
+- Documentos creados (HTTP 201): 4.
+- Solicitudes limitadas (HTTP 429): 16.
+- Respuestas inesperadas: 0.
+
+Resultado: se observó una restricción de las cargas
+simultáneas, compatible con el límite configurado.
+
+Como Rate Limiting e InFlightReq estaban activos,
+no se puede atribuir cada HTTP 429 a uno de ellos
+sin realizar una prueba aislada.
+
+### Limitaciones
+
+- Las pruebas fueron realizadas localmente.
+- El gateway limita solicitudes, pero no identifica bots.
+- No sustituye autenticación ni protección anti-DDoS.
+- Los límites deben ajustarse según el entorno.
+- Las protecciones requieren que el tráfico pase
+  por Traefik y no acceda directamente a Request.
