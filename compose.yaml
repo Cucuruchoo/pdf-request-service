@@ -1,9 +1,52 @@
 
 services:
+  traefik:
+    image: traefik:v3.7.16
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:8000"
+      - "--accesslog=true"
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - request
+
   request:
     build: .
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
+
+    labels:
+      - "traefik.enable=true"
+
+      # Router general para la API
+      - "traefik.http.routers.pdf-request.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.pdf-request.entrypoints=web"
+      - "traefik.http.routers.pdf-request.priority=1"
+      - "traefik.http.routers.pdf-request.service=pdf-request"
+      - "traefik.http.routers.pdf-request.middlewares=pdf-rate-limit"
+
+      # Router exclusivo para subir PDFs
+      - "traefik.http.routers.pdf-upload.rule=Path(`/api/v1/documents`) && Method(`POST`)"
+      - "traefik.http.routers.pdf-upload.entrypoints=web"
+      - "traefik.http.routers.pdf-upload.priority=100"
+      - "traefik.http.routers.pdf-upload.service=pdf-request"
+      - "traefik.http.routers.pdf-upload.middlewares=pdf-rate-limit,pdf-post-inflight"
+
+      # Servicio interno
+      - "traefik.http.services.pdf-request.loadbalancer.server.port=8000"
+
+      # Límite de solicitudes por segundo
+      - "traefik.http.middlewares.pdf-rate-limit.ratelimit.average=15"
+      - "traefik.http.middlewares.pdf-rate-limit.ratelimit.period=1s"
+      - "traefik.http.middlewares.pdf-rate-limit.ratelimit.burst=20"
+
+      # Máximo de POST simultáneos
+      - "traefik.http.middlewares.pdf-post-inflight.inflightreq.amount=4"
+
     environment:
       EXTRACTION_SERVICE_URL: http://extraction:8000
       STORAGE_SERVICE_URL: http://storage:8000
