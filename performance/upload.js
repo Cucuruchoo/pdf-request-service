@@ -24,7 +24,7 @@ const BASE_URL =
   __ENV.BASE_URL || 'http://127.0.0.1:8000';
 
 // Genera un PDF real, simple y diferente en cada solicitud.
-function createPDF(id) {
+export function createPDF(id) {
   let pdf = '%PDF-1.4\n';
   const offsets = [0];
 
