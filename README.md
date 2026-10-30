@@ -1,7 +1,23 @@
 
 # PDF Request Service
 
-Tercer microservicio del proyecto Desarrollo de Software 2026.
+Microservicio de entrada pública de la implementación final del proyecto Desarrollo de Software 2026.
+
+## Integrantes
+
+- Santiago Viñolo
+- Renata Michaux
+
+## Evolución del proyecto
+
+El proyecto se desarrolló en **una única etapa académica**. Comenzó con una [implementación monolítica organizada por capas](https://github.com/Cucuruchoo/pdf-extractext) y evolucionó hacia tres microservicios: [Request](https://github.com/Cucuruchoo/pdf-request-service), [Extraction](https://github.com/Cucuruchoo/pdf-extraction-service) y [Storage](https://github.com/Cucuruchoo/pdf-storage-service).
+
+La gestión del trabajo se conserva en dos tableros complementarios:
+
+- [GitHub Project — Implementación original](https://github.com/users/Cucuruchoo/projects/2).
+- [GitHub Project — Implementación final con microservicios](https://github.com/users/Cucuruchoo/projects/1).
+
+Para conocer el flujo entre servicios, las decisiones de diseño y las limitaciones, consultá la [documentación de arquitectura](docs/ARQUITECTURA.md).
 
 ## Descripción
 
