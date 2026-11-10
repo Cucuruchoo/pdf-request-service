@@ -1,6 +1,7 @@
 import httpx
 import pytest
 
+from app.domain.errors import UpstreamError
 from app.infrastructure.http_clients import HttpExtractionClient, HttpStorageClient
 from app.infrastructure.resilience import CircuitBreaker, CircuitOpenError
 
@@ -35,8 +36,9 @@ async def test_storage_post_is_not_retried():
         storage = HttpStorageClient(
             client, "http://storage", max_retries=2, retry_base_delay_seconds=0
         )
-        with pytest.raises(Exception):
+        with pytest.raises(UpstreamError) as error:
             await storage.create({"checksum": "abc"})
+        assert error.value.status_code == 502
     assert attempts == 1
 
 
@@ -92,6 +94,6 @@ async def test_http_4xx_does_not_trip_circuit():
     ) as client:
         storage = HttpStorageClient(client, "http://storage", breaker, max_retries=0)
         for _ in range(3):
-            with pytest.raises(Exception) as exc:
+            with pytest.raises(UpstreamError) as error:
                 await storage.get("not-found")
-            assert not isinstance(exc.value, CircuitOpenError)
+            assert error.value.status_code == 404
