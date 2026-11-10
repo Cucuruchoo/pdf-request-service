@@ -12,10 +12,11 @@ class Settings(BaseSettings):
     max_pdf_size_bytes: int = Field(default=10 * 1024 * 1024, gt=0)
     upstream_timeout_seconds: float = Field(default=30, gt=0)
     log_level: str = "INFO"
-    max_concurrent_pdf_uploads: int = Field(
-        default=4,
-        ge=1,
-    )
+    max_concurrent_pdf_uploads: int = Field(default=4, ge=1)
+    circuit_failure_threshold: int = Field(default=3, ge=1)
+    circuit_recovery_seconds: float = Field(default=15, gt=0)
+    upstream_retry_attempts: int = Field(default=2, ge=0, le=5)
+    upstream_retry_base_delay_seconds: float = Field(default=0.1, ge=0)
 
 
 @lru_cache
