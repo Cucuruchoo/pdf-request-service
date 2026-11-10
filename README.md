@@ -132,3 +132,12 @@ Se verifica:
 El límite interno funciona por proceso de Request.
 En una arquitectura con múltiples instancias,
 cada una mantiene su propio contador.
+
+## Correcciones de resiliencia y seguridad (noviembre de 2026)
+
+- El contenedor Request ejecuta Uvicorn con un usuario sin privilegios.
+- Docker Compose espera `service_healthy` antes de iniciar dependientes.
+- Las sondas de los tres servicios y de MongoDB permiten inspeccionar el estado con `docker compose ps`.
+- Request aplica retry con backoff y circuit breaker por servicio, sin reintentar escrituras a Storage.
+
+Ver [guía de salud y resiliencia](docs/RESILIENCIA.md) para detalles y pruebas.
